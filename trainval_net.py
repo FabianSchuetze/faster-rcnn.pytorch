@@ -243,13 +243,14 @@ if __name__ == '__main__':
 
     sampler_batch = sampler(train_size, args.batch_size)
 
-    import pdb
-    pdb.set_trace()
+    # Turns data into class so that it can be used by pytorch, I think
     dataset = roibatchLoader(roidb, ratio_list, ratio_index, args.batch_size,
                              imdb.num_classes, training=True)
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                             sampler=sampler_batch, num_workers=args.num_workers)
+    dataloader = torch.utils.data.DataLoader(dataset,
+                                             batch_size=args.batch_size,
+                                             sampler=sampler_batch,
+                                             num_workers=args.num_workers)
 
     # initilize the tensor holder here.
     im_data = torch.FloatTensor(1)
@@ -265,6 +266,7 @@ if __name__ == '__main__':
         gt_boxes = gt_boxes.cuda()
 
     # make variable
+    # not needed anymore, can use Tensor(x, requires_grad=True)
     im_data = Variable(im_data)
     im_info = Variable(im_info)
     num_boxes = Variable(num_boxes)
@@ -299,7 +301,7 @@ if __name__ == '__main__':
             class_agnostic=args.class_agnostic)
     else:
         print("network is not defined")
-        pdb.set_trace()
+        # pdb.set_trace()
 
     fasterRCNN.create_architecture()
 

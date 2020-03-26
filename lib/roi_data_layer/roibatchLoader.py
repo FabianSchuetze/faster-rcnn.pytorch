@@ -56,6 +56,14 @@ class roibatchLoader(data.Dataset):
             self.ratio_list_batch[left_idx:(right_idx + 1)] = target_ratio
 
     def __getitem__(self, index):
+        """I think here we have the items for the training.
+
+        Returns
+        -------
+        return data, im_info, gt_boxes, num_boxes
+        First element:
+            picuture, second?, gt boxes and categories, n_objects?
+        """
         if self.training:
             index_ratio = int(self.ratio_index[index])
         else:
