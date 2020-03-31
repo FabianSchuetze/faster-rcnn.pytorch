@@ -80,16 +80,20 @@ class _ProposalLayer(nn.Module):
         feat_height, feat_width = scores.size(2), scores.size(3)
         shift_x = np.arange(0, feat_width) * self._feat_stride
         shift_y = np.arange(0, feat_height) * self._feat_stride
+        # feature stride comes from the underlying network
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shifts = torch.from_numpy(
             np.vstack((shift_x.ravel(), shift_y.ravel(),
                        shift_x.ravel(), shift_y.ravel())).transpose())
         shifts = shifts.contiguous().type_as(scores).float()
+        # what are the shifts doing?
 
         A = self._num_anchors
         K = shifts.size(0)
 
+        import pdb; pdb.set_trace()
         self._anchors = self._anchors.type_as(scores)
+        # why are these things negative?
         anchors = self._anchors.view(1, A, 4) + shifts.view(K, 1, 4)
         anchors = anchors.view(1, K * A, 4).expand(batch_size, K * A, 4)
 

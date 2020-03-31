@@ -51,9 +51,10 @@ class vgg16(_fasterRCNN):
         # not using the last maxpool layer
         self.RCNN_cls_score = nn.Linear(4096, self.n_classes)
 
+        # what is used in the paper? Agnostic or not?
         if self.class_agnostic:
             self.RCNN_bbox_pred = nn.Linear(4096, 4)
-        else:
+        else:  # Seems to be the standard
             self.RCNN_bbox_pred = nn.Linear(4096, 4 * self.n_classes)
 
     def _head_to_tail(self, pool5):

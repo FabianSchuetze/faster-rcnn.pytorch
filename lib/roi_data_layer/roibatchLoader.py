@@ -1,4 +1,3 @@
-
 """The data layer used during training to train a Fast R-CNN network.
 """
 
@@ -7,17 +6,12 @@ from __future__ import division
 from __future__ import print_function
 
 import torch.utils.data as data
-from PIL import Image
 import torch
 
 from model.utils.config import cfg
-from roi_data_layer.minibatch import get_minibatch, get_minibatch
+from roi_data_layer.minibatch import get_minibatch
 from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
-
 import numpy as np
-import random
-import time
-import pdb
 
 
 class roibatchLoader(data.Dataset):
@@ -64,10 +58,12 @@ class roibatchLoader(data.Dataset):
         First element:
             picuture, second?, gt boxes and categories, n_objects?
         """
+        # What is this?
         if self.training:
             index_ratio = int(self.ratio_index[index])
         else:
             index_ratio = index
+        # import pdb; pdb.set_trace()
 
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
@@ -86,18 +82,21 @@ class roibatchLoader(data.Dataset):
             # padding the input image to fixed size for each group #
             ########################################################
 
-            # NOTE1: need to cope with the case where a group cover both conditions. (done)
-            # NOTE2: need to consider the situation for the tail samples. (no worry)
+            # NOTE1: need to cope with the case where a group cover both
+            # conditions. (done)
+            # NOTE2: need to consider the situation for the tail samples. (no
+            # worry)
             # NOTE3: need to implement a parallel data loader. (no worry)
             # get the index range
 
             # if the image need to crop, crop to the target size.
+            ## HOW DO WE KNOW THAT?
             ratio = self.ratio_list_batch[index]
 
             if self._roidb[index_ratio]['need_crop']:
                 if ratio < 1:
-                    # this means that data_width << data_height, we need to crop the
-                    # data_height
+                    # this means that data_width << data_height, we need to
+                    # crop the data_height
                     min_y = int(torch.min(gt_boxes[:, 1]))
                     max_y = int(torch.max(gt_boxes[:, 3]))
                     trim_size = int(np.floor(data_width / ratio))
@@ -133,8 +132,8 @@ class roibatchLoader(data.Dataset):
                     gt_boxes[:, 3].clamp_(0, trim_size - 1)
 
                 else:
-                    # this means that data_width >> data_height, we need to crop the
-                    # data_width
+                    # this means that data_width >> data_height, we need to
+                    # crop the data_width
                     min_x = int(torch.min(gt_boxes[:, 0]))
                     max_x = int(torch.max(gt_boxes[:, 2]))
                     trim_size = int(np.ceil(data_height * ratio))

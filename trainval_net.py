@@ -152,9 +152,7 @@ class sampler(Sampler):
 
 
 if __name__ == '__main__':
-
     args = parse_args()
-
     print('Called with args:')
     print(args)
 
@@ -224,12 +222,13 @@ if __name__ == '__main__':
     pprint.pprint(cfg)
     np.random.seed(cfg.RNG_SEED)
 
-    #torch.backends.cudnn.benchmark = True
     if torch.cuda.is_available() and not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+        print("WARNING: You have a CUDA device,\
+              so you should probably run with --cuda")
 
     # train set
-    # -- Note: Use validation set and disable the flipped to enable faster loading.
+    # -- Note: Use validation set and disable the flipped to enable faster
+    # loading.
     cfg.TRAIN.USE_FLIPPED = True
     cfg.USE_GPU_NMS = args.cuda
     imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name)
@@ -353,9 +352,9 @@ if __name__ == '__main__':
         from tensorboardX import SummaryWriter
         logger = SummaryWriter("logs")
 
+    import pdb; pdb.set_trace()
     for epoch in range(args.start_epoch, args.max_epochs + 1):
-        # setting to train mode
-        fasterRCNN.train()
+        fasterRCNN.train()  # setting to train mode
         loss_temp = 0
         start = time.time()
 
@@ -363,7 +362,7 @@ if __name__ == '__main__':
             adjust_learning_rate(optimizer, args.lr_decay_gamma)
             lr *= args.lr_decay_gamma
 
-        data_iter = iter(dataloader)
+        data_iter = iter(dataloader) # what does this do?
         for step in range(iters_per_epoch):
             data = next(data_iter)
             with torch.no_grad():
@@ -371,12 +370,14 @@ if __name__ == '__main__':
                 im_info.resize_(data[1].size()).copy_(data[1])
                 gt_boxes.resize_(data[2].size()).copy_(data[2])
                 num_boxes.resize_(data[3].size()).copy_(data[3])
+                # why is this happening?
 
             fasterRCNN.zero_grad()
             rois, cls_prob, bbox_pred, \
                 rpn_loss_cls, rpn_loss_box, \
                 RCNN_loss_cls, RCNN_loss_bbox, \
                 rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+                # call operator goes to forward
 
             loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
                 + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()

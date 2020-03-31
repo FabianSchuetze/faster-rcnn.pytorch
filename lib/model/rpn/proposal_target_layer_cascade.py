@@ -34,7 +34,16 @@ class _ProposalTargetLayer(nn.Module):
         self.BBOX_INSIDE_WEIGHTS = torch.FloatTensor(
             cfg.TRAIN.BBOX_INSIDE_WEIGHTS)
 
-    def forward(self, all_rois, gt_boxes, num_boxes):
+    def forward(self, all_rois: torch.Tensor, gt_boxes: torch.Tensor, num_boxes):
+        """Paramters
+        ------------
+
+        gt_boxes:
+            The location of the ground truth elements
+
+        all_rois: torch.Tensor
+            The rois suggestions by the rpn
+        """
 
         self.BBOX_NORMALIZE_MEANS = self.BBOX_NORMALIZE_MEANS.type_as(gt_boxes)
         self.BBOX_NORMALIZE_STDS = self.BBOX_NORMALIZE_STDS.type_as(gt_boxes)

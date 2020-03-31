@@ -1,4 +1,3 @@
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,17 +7,9 @@ from torch.autograd import Variable
 import numpy as np
 from model.utils.config import cfg
 from model.rpn.rpn import _RPN  # the separate RPN
-
 from model.roi_layers import ROIAlign, ROIPool
-
-# from model.roi_pooling.modules.roi_pool import _RoIPooling
-# from model.roi_align.modules.roi_align import RoIAlignAvg
-
 from model.rpn.proposal_target_layer_cascade import _ProposalTargetLayer
-# import time
-import pdb
-from model.utils.net_utils import _smooth_l1_loss, _crop_pool_layer,\
-        _affine_grid_gen, _affine_theta
+from model.utils.net_utils import _smooth_l1_loss
 
 
 class _fasterRCNN(nn.Module):
@@ -36,12 +27,6 @@ class _fasterRCNN(nn.Module):
         # define rpn
         self.RCNN_rpn = _RPN(self.dout_base_model)
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
-
-        # self.RCNN_roi_pool = _RoIPooling(cfg.POOLING_SIZE,
-                                           # cfg.POOLING_SIZE, 1.0/16.0)
-        # self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE,
-                                            # cfg.POOLING_SIZE, 1.0/16.0)
-
         self.RCNN_roi_pool = ROIPool(
             (cfg.POOLING_SIZE, cfg.POOLING_SIZE), 1.0 / 16.0)
         self.RCNN_roi_align = ROIAlign(
@@ -65,12 +50,12 @@ class _fasterRCNN(nn.Module):
             The number of boxes seen in the image
         """
         batch_size = im_data.size(0)
-
         im_info = im_info.data
         gt_boxes = gt_boxes.data
         num_boxes = num_boxes.data
 
         # feed image data to base model to obtain base feature map
+        import pdb; pdb.set_trace()
         base_feat = self.RCNN_base(im_data)
         # Defined in the child class. What is the output size here?
 
@@ -81,12 +66,13 @@ class _fasterRCNN(nn.Module):
         # rpn_loss_cls, The inital loss from the classifier. Why classifier?
         # rpn_loss_bbox: The loss from the bounding bozws.
 
-        # if it is training phrase, then use ground trubut bboxes for refining
         if self.training:
-            # What happens in here?
+            # What happens in here: Adding ground truth data?
+            # rois: We need to somehow reduce this to 256 samples.
             roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
             rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws =\
                 roi_data
+            # what are the weights doing? Loss weight... Why not one?
 
             rois_label = Variable(rois_label.view(-1).long())
             rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
@@ -103,41 +89,42 @@ class _fasterRCNN(nn.Module):
             rpn_loss_bbox = 0
 
         rois = Variable(rois)
-        import pdb; pdb.set_trace()
         # do roi pooling based on predicted rois
 
+        # why is there a choice of pooling modes? What is used in the paper?
         if cfg.POOLING_MODE == 'align':
             pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
         elif cfg.POOLING_MODE == 'pool':
             pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
-        # 256 samples, 512 channels (I think), 
+        # Original paper has pool, but mask rnn shows that align works better
+        # 256 samples (rois), 512 channels (I think), always 7x7
 
-        # feed pooled features to top model
+        # 3. Step: Pass pooled features through fc layer
         pooled_feat = self._head_to_tail(pooled_feat)
-        # The fixed size output, I guess
 
-        # compute bbox offset
+        # == 4 Step: The two heads of the network == #
+        # 4.1 compute bbox offset
         bbox_pred = self.RCNN_bbox_pred(pooled_feat)
-        # Why are these more then four elements inside?
         if self.training and not self.class_agnostic:
             # select the corresponding columns according to roi labels
+            # not available during test, how do we pick during test?
             bbox_pred_view = bbox_pred.view(
                 bbox_pred.size(0), int(
                     bbox_pred.size(1) / 4), 4)
             bbox_pred_select = torch.gather(
                 bbox_pred_view, 1, rois_label.view(
                     rois_label.size(0), 1, 1).expand(
-                    rois_label.size(0), 1, 4))
+                        rois_label.size(0), 1, 4))
             bbox_pred = bbox_pred_select.squeeze(1)
 
-        # compute object classification probability
+        # 4.2: compute object classification probability
         cls_score = self.RCNN_cls_score(pooled_feat)
         cls_prob = F.softmax(cls_score, 1)
-        # Probabilities for each class. Why do we have 256 outputs?
 
         RCNN_loss_cls = 0
         RCNN_loss_bbox = 0
 
+        import pdb; pdb.set_trace()
         if self.training:
             # classification loss
             RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
@@ -149,7 +136,8 @@ class _fasterRCNN(nn.Module):
         cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
         bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
 
-        return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
+        return rois, cls_prob, bbox_pred, rpn_loss_cls,\
+            rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
 
     def _init_weights(self):
         def normal_init(m, mean, stddev, truncated=False):
